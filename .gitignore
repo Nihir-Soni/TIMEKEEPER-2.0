@@ -15,3 +15,10 @@ debug*.png
 *.pt
 *.onnx
 .DS_Store
+
+# Research artifacts
+research_checkpoints/
+research_restored_output/
+research_test_input/
+research_test_output/
+ablation_temp_input/

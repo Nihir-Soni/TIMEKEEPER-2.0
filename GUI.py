@@ -308,6 +308,9 @@ images_col = [
         sg.Checkbox('High Resolution (HR)', key='-HR-', default=False),
     ],
     [
+        sg.Checkbox('Reliability Analysis (Uncertainty)', key='-UNCERTAINTY-', default=False)
+    ],
+    [
         sg.Text('Color Saturation:'),
         sg.Slider(range=(0.0, 2.0), default_value=1.0, resolution=0.1, orientation='h', size=(20, 15), key='-SATURATION-')
     ],
@@ -322,7 +325,14 @@ images_col = [
     # Status bar
     [sg.Text('', key='-STATUS-', size=(80, 2), text_color='lightgreen')],
     # Image preview area
-    [sg.Image(filename='', key='-IN-'), sg.Image(filename='', key='-OUT-')],
+    [
+        sg.Column([[sg.Text("Original")], [sg.Image(filename='', key='-IN-')]], element_justification='c'),
+        sg.Column([[sg.Text("Restored")], [sg.Image(filename='', key='-OUT-')]], element_justification='c')
+    ],
+    [
+        sg.Column([[sg.Text("Raw Uncertainty")], [sg.Image(filename='', key='-UNC-')]], element_justification='c'),
+        sg.Column([[sg.Text("Calibrated Confidence")], [sg.Image(filename='', key='-CONF-')]], element_justification='c')
+    ]
 ]
 
 layout = [[sg.VSeperator(), sg.Column(images_col)]]
@@ -373,6 +383,7 @@ while True:
         do_scratch  = values['-SCRATCH-']
         do_colorize = values['-COLORIZE-']
         do_hr       = values['-HR-']
+        do_uncertainty = values['-UNCERTAINTY-']
 
         try:
             # Build human-readable status description
@@ -431,6 +442,36 @@ while True:
                 out_img = cv2.imread(f_image)
                 if out_img is not None:
                     window['-OUT-'].update(data=make_preview_bytes(out_img))
+                    
+                    if do_uncertainty:
+                        try:
+                            _gui_status("Running Uncertainty Analysis...")
+                            from research.uncertainty import UncertaintyInferencer
+                            from research.calibration import UncertaintyCalibrator
+                            
+                            inferencer = UncertaintyInferencer("research_checkpoints/best_uncertainty_model.pth")
+                            calibrator = UncertaintyCalibrator.load("research_checkpoints/calibrator.pkl")
+                            
+                            orig_img = cv2.imread(filename)
+                            raw_unc = inferencer.infer(orig_img, out_img)
+                            calib_unc = calibrator.calibrate(raw_unc)
+                            confidence = np.clip(1.0 - (calib_unc / 255.0), 0.0, 1.0)
+                            
+                            raw_vis = ((raw_unc / max(1e-5, raw_unc.max())) * 255).astype(np.uint8)
+                            raw_vis = cv2.cvtColor(raw_vis, cv2.COLOR_GRAY2BGR)
+                            
+                            conf_vis = (confidence * 255).astype(np.uint8)
+                            conf_heatmap = cv2.applyColorMap(conf_vis, cv2.COLORMAP_JET)
+                            
+                            window['-UNC-'].update(data=make_preview_bytes(raw_vis))
+                            window['-CONF-'].update(data=make_preview_bytes(conf_heatmap))
+                        except Exception as e:
+                            _gui_status(f"Uncertainty Analysis failed: {e}")
+                    else:
+                        # Clear if disabled
+                        window['-UNC-'].update(data=b"")
+                        window['-CONF-'].update(data=b"")
+                        
                     label = "restored + colorized" if do_colorize else "restored"
                     window['-STATUS-'].update(
                         f"Done! {label.capitalize()}: {os.path.basename(f_image)}")
