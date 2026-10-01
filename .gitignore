@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*~
+venv/
+.venv/
+env/
+output/
+gui_temp_input/
+Colorization/checkpoints/
+Face_Enhancement/checkpoints/
+Face_Detection/checkpoints/
+Global/checkpoints/
+debug*.png
+*.pth
+*.pt
+*.onnx
+.DS_Store
