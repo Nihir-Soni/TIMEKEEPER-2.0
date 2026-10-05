@@ -159,7 +159,6 @@ def _postprocess_ddcolor(ab_tensor: torch.Tensor,
                           saturation: float = 1.0) -> np.ndarray:
     """
     Merge predicted ab with original L and convert back to BGR uint8.
-    Matches the official implementation exactly.
     """
     import torch.nn.functional as F
 
@@ -177,7 +176,7 @@ def _postprocess_ddcolor(ab_tensor: torch.Tensor,
         .numpy()
         .transpose(1, 2, 0)
     )
-    
+
     # l_full is (h, w, 1), output_ab_resized is (h, w, 2)
     output_lab = np.concatenate((l_full, output_ab_resized), axis=-1)
     output_bgr = cv2.cvtColor(output_lab, cv2.COLOR_LAB2BGR)

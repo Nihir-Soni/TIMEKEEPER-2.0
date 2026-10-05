@@ -327,17 +327,15 @@ images_col = [
     # Image preview area
     [
         sg.Column([[sg.Text("Original")], [sg.Image(filename='', key='-IN-')]], element_justification='c'),
-        sg.Column([[sg.Text("Restored")], [sg.Image(filename='', key='-OUT-')]], element_justification='c')
-    ],
-    [
+        sg.Column([[sg.Text("Restored")], [sg.Image(filename='', key='-OUT-')]], element_justification='c'),
         sg.Column([[sg.Text("Raw Uncertainty")], [sg.Image(filename='', key='-UNC-')]], element_justification='c'),
         sg.Column([[sg.Text("Calibrated Confidence")], [sg.Image(filename='', key='-CONF-')]], element_justification='c')
     ]
 ]
 
-layout = [[sg.VSeperator(), sg.Column(images_col)]]
+layout = [[sg.Column(images_col, element_justification='c', expand_x=True, expand_y=True)]]
 
-window = sg.Window('Bringing Old Photos Back to Life', layout, grab_anywhere=True)
+window = sg.Window('Bringing Old Photos Back to Life', layout, grab_anywhere=True, resizable=True)
 
 prev_filename = None
 filename = None
