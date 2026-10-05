@@ -133,32 +133,51 @@ def modify(image_filename=None, cv2_frame=None,
 
         # ── Stage 1b: DDColor Colorization (optional) ─────────────────────────
         if with_colorize:
-            _status("Colorizing... (DDColor)")
+            _status("Colorizing... (Siggraph17)")
             os.chdir(main_environment)   # back to project root for imports
 
             try:
-                from Colorization.colorize import DDColorizer, find_checkpoint
-
-                ckpt = find_checkpoint("modelscope")
-                if ckpt is None:
-                    raise FileNotFoundError(
-                        "DDColor checkpoint not found!\n\n"
-                        "Please click the 'Download DDColor Model' button.\n\n"
-                        "Or manually download 'ddcolor_modelscope.pth' from:\n"
-                        "  https://huggingface.co/piddnad/DDColor-models\n"
-                        "and place it in:  Colorization/checkpoints/"
-                    )
 
                 import torch
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 _status(f"Colorizing on {device}...")
 
-                colorizer = DDColorizer.from_checkpoint(
-                    checkpoint_path=ckpt,
-                    model_size="modelscope",
-                    input_size=512,
-                    device=device,
-                )
+                class SiggraphColorizer:
+                    def __init__(self, device):
+                        import sys
+                        import os
+                        colorizers_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'colorization-master'))
+                        if colorizers_path not in sys.path:
+                            sys.path.append(colorizers_path)
+                        from colorizers import siggraph17
+                        self.device = device
+                        self.model = siggraph17(pretrained=True).eval().to(device)
+                        
+                    def colorize_bgr(self, bgr_img, saturation=1.0):
+                        import cv2
+                        import numpy as np
+                        import torch
+                        from colorizers import preprocess_img, postprocess_tens
+                        
+                        # BGR to RGB
+                        rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)
+                        
+                        (tens_l_orig, tens_l_rs) = preprocess_img(rgb_img, HW=(256, 256))
+                        tens_l_rs = tens_l_rs.to(self.device)
+                        
+                        with torch.no_grad():
+                            out_ab = self.model(tens_l_rs).cpu()
+                            
+                            if saturation != 1.0:
+                                out_ab = out_ab * saturation
+                                
+                        out_rgb_float = postprocess_tens(tens_l_orig, out_ab)
+                        out_rgb_uint8 = (np.clip(out_rgb_float, 0.0, 1.0) * 255.0).astype(np.uint8)
+                        
+                        out_bgr = cv2.cvtColor(out_rgb_uint8, cv2.COLOR_RGB2BGR)
+                        return out_bgr
+
+                colorizer = SiggraphColorizer(device=device)
 
                 colorize_output_dir = os.path.join(
                     opts.output_folder, "stage_1b_colorized")

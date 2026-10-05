@@ -159,6 +159,8 @@ def _postprocess_ddcolor(ab_tensor: torch.Tensor,
                           saturation: float = 1.0) -> np.ndarray:
     """
     Merge predicted ab with original L and convert back to BGR uint8.
+    Uses GrabCut to segment portrait subjects from backgrounds, then
+    normalises the background colour to eliminate DDColor inconsistencies.
     """
     import torch.nn.functional as F
 
@@ -168,7 +170,7 @@ def _postprocess_ddcolor(ab_tensor: torch.Tensor,
     if saturation != 1.0:
         ab_tensor = ab_tensor * saturation
 
-    # resize ab -> concat original l -> bgr
+    # resize ab -> (h, w, 2) float32
     output_ab_resized = (
         F.interpolate(ab_tensor, size=(orig_h, orig_w))[0]
         .float()
