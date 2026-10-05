@@ -252,16 +252,25 @@ def modify(image_filename=None, cv2_frame=None,
         if os.path.exists(stage_3_output_dir):
             shutil.rmtree(stage_3_output_dir, ignore_errors=True)
         os.makedirs(stage_3_output_dir, exist_ok=True)
+        if with_hr:
+            ckpt_name = 'FaceSR_512'
+            load_size = '512'
+            batch_size = '1'
+        else:
+            ckpt_name = opts.checkpoint_name
+            load_size = '256'
+            batch_size = '4'
+
         stage_3_command = (
             py_cmd + " test_face.py --old_face_folder "
             + stage_3_input_face
             + " --old_face_label_folder "
             + stage_3_input_mask
             + " --tensorboard_log --name "
-            + opts.checkpoint_name
+            + ckpt_name
             + " --gpu_ids "
             + gpu1
-            + " --load_size 256 --label_nc 18 --no_instance --preprocess_mode resize --batchSize 4 --results_dir "
+            + f" --load_size {load_size} --label_nc 18 --no_instance --preprocess_mode resize --batchSize {batch_size} --results_dir "
             + stage_3_output_dir
             + " --no_parsing_map"
         )
@@ -309,218 +318,222 @@ def make_preview_bytes(img, max_dim=450):
     return cv2.imencode('.png', img)[1].tobytes()
 
 
-# ── Layout ─────────────────────────────────────────────────────────────────
-
-images_col = [
-    # File picker
-    [
-        sg.Text('Input file:'),
-        sg.In(enable_events=True, key='-IN FILE-'),
-        sg.FileBrowse(file_types=(("Image Files", "*.png;*.jpg;*.jpeg;*.bmp"),)),
-    ],
-    # Options
-    [sg.HorizontalSeparator()],
-    [sg.Text('Options:', font=('Helvetica', 10, 'bold'))],
-    [
-        sg.Checkbox('Scratch Restoration', key='-SCRATCH-', default=False),
-        sg.Checkbox('Colorize (DDColor)', key='-COLORIZE-', default=False),
-        sg.Checkbox('High Resolution (HR)', key='-HR-', default=False),
-    ],
-    [
-        sg.Checkbox('Reliability Analysis (Uncertainty)', key='-UNCERTAINTY-', default=False)
-    ],
-    [
-        sg.Text('Color Saturation:'),
-        sg.Slider(range=(0.0, 2.0), default_value=1.0, resolution=0.1, orientation='h', size=(20, 15), key='-SATURATION-')
-    ],
-    [sg.HorizontalSeparator()],
-    # Buttons
-    [
-        sg.Button('Restore Photo', key='-MPHOTO-'),
-        sg.Button('Open Output Folder', key='-OPEN_OUT-'),
-        sg.Button('Download DDColor Model', key='-DOWNLOAD_CKPT-'),
-        sg.Button('Exit'),
-    ],
-    # Status bar
-    [sg.Text('', key='-STATUS-', size=(80, 2), text_color='lightgreen')],
-    # Image preview area
-    [
-        sg.Column([[sg.Text("Original")], [sg.Image(filename='', key='-IN-')]], element_justification='c'),
-        sg.Column([[sg.Text("Restored")], [sg.Image(filename='', key='-OUT-')]], element_justification='c'),
-        sg.Column([[sg.Text("Raw Uncertainty")], [sg.Image(filename='', key='-UNC-')]], element_justification='c'),
-        sg.Column([[sg.Text("Calibrated Confidence")], [sg.Image(filename='', key='-CONF-')]], element_justification='c')
+def main():
+    # ── Layout ─────────────────────────────────────────────────────────────────
+    
+    images_col = [
+        # File picker
+        [
+            sg.Text('Input file:'),
+            sg.In(enable_events=True, key='-IN FILE-'),
+            sg.FileBrowse(file_types=(("Image Files", "*.png;*.jpg;*.jpeg;*.bmp"),)),
+        ],
+        # Options
+        [sg.HorizontalSeparator()],
+        [sg.Text('Options:', font=('Helvetica', 10, 'bold'))],
+        [
+            sg.Checkbox('Scratch Restoration', key='-SCRATCH-', default=False),
+            sg.Checkbox('Colorize (DDColor)', key='-COLORIZE-', default=False),
+            sg.Checkbox('High Resolution (HR)', key='-HR-', default=False),
+        ],
+        [
+            sg.Checkbox('Reliability Analysis (Uncertainty)', key='-UNCERTAINTY-', default=False)
+        ],
+        [
+            sg.Text('Color Saturation:'),
+            sg.Slider(range=(0.0, 2.0), default_value=1.0, resolution=0.1, orientation='h', size=(20, 15), key='-SATURATION-')
+        ],
+        [sg.HorizontalSeparator()],
+        # Buttons
+        [
+            sg.Button('Restore Photo', key='-MPHOTO-'),
+            sg.Button('Open Output Folder', key='-OPEN_OUT-'),
+            sg.Button('Download DDColor Model', key='-DOWNLOAD_CKPT-'),
+            sg.Button('Exit'),
+        ],
+        # Status bar
+        [sg.Text('', key='-STATUS-', size=(80, 2), text_color='lightgreen')],
+        # Image preview area
+        [
+            sg.Column([[sg.Text("Original")], [sg.Image(filename='', key='-IN-')]], element_justification='c'),
+            sg.Column([[sg.Text("Restored")], [sg.Image(filename='', key='-OUT-')]], element_justification='c'),
+            sg.Column([[sg.Text("Raw Uncertainty")], [sg.Image(filename='', key='-UNC-')]], element_justification='c'),
+            sg.Column([[sg.Text("Calibrated Confidence")], [sg.Image(filename='', key='-CONF-')]], element_justification='c')
+        ]
     ]
-]
-
-layout = [[sg.Column(images_col, element_justification='c', expand_x=True, expand_y=True)]]
-
-window = sg.Window('Bringing Old Photos Back to Life', layout, grab_anywhere=True, resizable=True)
-
-prev_filename = None
-filename = None
-project_root = os.path.dirname(os.path.abspath(__file__))
-
-
-# ── Event loop ────────────────────────────────────────────────────────────────
-
-while True:
-    event, values = window.read()
-
-    if event in (None, 'Exit'):
-        break
-
-    elif event == '-OPEN_OUT-':
-        out_dir = os.path.join(project_root, "output", "final_output")
-        os.makedirs(out_dir, exist_ok=True)
-        if sys.platform == "win32":
-            os.startfile(out_dir)
-        else:
-            call(["xdg-open", out_dir])
-
-    elif event == '-DOWNLOAD_CKPT-':
-        window['-STATUS-'].update(
-            "Downloading DDColor checkpoint from HuggingFace... (see console for progress)")
-        window.refresh()
-        try:
-            # Ensure project root on sys.path
-            if project_root not in sys.path:
-                sys.path.insert(0, project_root)
-            from Colorization.colorize import download_checkpoint
-            p = download_checkpoint(model_size="modelscope")
-            window['-STATUS-'].update(f"✓ Downloaded: {p}")
-        except Exception as e:
-            window['-STATUS-'].update(f"Download failed: {e}")
-
-    elif event == '-MPHOTO-':
-        if not filename or not os.path.isfile(filename):
-            window['-STATUS-'].update("Please select a valid image file first.")
-            continue
-
-        # Read GUI option checkboxes
-        do_scratch  = values['-SCRATCH-']
-        do_colorize = values['-COLORIZE-']
-        do_hr       = values['-HR-']
-        do_uncertainty = values['-UNCERTAINTY-']
-
-        try:
-            # Build human-readable status description
-            stages = ["Restoring"]
-            if do_scratch:
-                stages.append("Scratch removal")
-            if do_colorize:
-                stages.append("Colorizing")
-            stages.append("Face enhancement")
-            window['-STATUS-'].update("Running: " + " → ".join(stages) + "...")
+    
+    layout = [[sg.Column(images_col, element_justification='c', expand_x=True, expand_y=True)]]
+    
+    window = sg.Window('Bringing Old Photos Back to Life', layout, grab_anywhere=True, resizable=True)
+    
+    prev_filename = None
+    filename = None
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    
+    
+    # ── Event loop ────────────────────────────────────────────────────────────────
+    
+    while True:
+        event, values = window.read()
+    
+        if event in (None, 'Exit'):
+            break
+    
+        elif event == '-OPEN_OUT-':
+            out_dir = os.path.join(project_root, "output", "final_output")
+            os.makedirs(out_dir, exist_ok=True)
+            if sys.platform == "win32":
+                os.startfile(out_dir)
+            else:
+                call(["xdg-open", out_dir])
+    
+        elif event == '-DOWNLOAD_CKPT-':
+            window['-STATUS-'].update(
+                "Downloading DDColor checkpoint from HuggingFace... (see console for progress)")
             window.refresh()
-
-            # Ensure project root on sys.path so Colorization can be imported
-            if project_root not in sys.path:
-                sys.path.insert(0, project_root)
-
-            # Set up a clean temporary folder for this single input image
-            temp_input_folder = os.path.join(project_root, "gui_temp_input")
-            if os.path.exists(temp_input_folder):
-                shutil.rmtree(temp_input_folder)
-            os.makedirs(temp_input_folder, exist_ok=True)
-
-            base_name = os.path.basename(filename)
-            shutil.copy(filename, os.path.join(temp_input_folder, base_name))
-
-            output_folder = os.path.join(project_root, "output")
-
-            def _gui_status(msg):
-                window['-STATUS-'].update(msg)
+            try:
+                # Ensure project root on sys.path
+                if project_root not in sys.path:
+                    sys.path.insert(0, project_root)
+                from Colorization.colorize import download_checkpoint
+                p = download_checkpoint(model_size="modelscope")
+                window['-STATUS-'].update(f"✓ Downloaded: {p}")
+            except Exception as e:
+                window['-STATUS-'].update(f"Download failed: {e}")
+    
+        elif event == '-MPHOTO-':
+            if not filename or not os.path.isfile(filename):
+                window['-STATUS-'].update("Please select a valid image file first.")
+                continue
+    
+            # Read GUI option checkboxes
+            do_scratch  = values['-SCRATCH-']
+            do_colorize = values['-COLORIZE-']
+            do_hr       = values['-HR-']
+            do_uncertainty = values['-UNCERTAINTY-']
+    
+            try:
+                # Build human-readable status description
+                stages = ["Restoring"]
+                if do_scratch:
+                    stages.append("Scratch removal")
+                if do_colorize:
+                    stages.append("Colorizing")
+                stages.append("Face enhancement")
+                window['-STATUS-'].update("Running: " + " → ".join(stages) + "...")
                 window.refresh()
-
-            modify(
-                image_filename=temp_input_folder,
-                with_scratch=do_scratch,
-                with_colorize=do_colorize,
-                with_hr=do_hr,
-                status_callback=_gui_status,
-                saturation=values['-SATURATION-'],
-            )
-
-            # Find and display the output image
-            base_name_no_ext = os.path.splitext(base_name)[0]
-            final_dir = os.path.join(output_folder, "final_output")
-
-            candidates = [
-                os.path.join(final_dir, f"{base_name_no_ext}.png"),
-                os.path.join(final_dir, base_name),
-            ]
-            f_image = None
-            for cand in candidates:
-                if os.path.exists(cand):
-                    f_image = cand
-                    break
-
-            if f_image and os.path.exists(f_image):
-                out_img = cv2.imread(f_image)
-                if out_img is not None:
-                    window['-OUT-'].update(data=make_preview_bytes(out_img))
-                    
-                    if do_uncertainty:
-                        try:
-                            _gui_status("Running Uncertainty Analysis...")
-                            from research.uncertainty import UncertaintyInferencer
-                            from research.calibration import UncertaintyCalibrator
-                            
-                            inferencer = UncertaintyInferencer("research_checkpoints/best_uncertainty_model.pth")
-                            calibrator = UncertaintyCalibrator.load("research_checkpoints/calibrator.pkl")
-                            
-                            orig_img = cv2.imread(filename)
-                            raw_unc = inferencer.infer(orig_img, out_img)
-                            calib_unc = calibrator.calibrate(raw_unc)
-                            confidence = np.clip(1.0 - (calib_unc / 255.0), 0.0, 1.0)
-                            
-                            raw_vis = ((raw_unc / max(1e-5, raw_unc.max())) * 255).astype(np.uint8)
-                            raw_vis = cv2.cvtColor(raw_vis, cv2.COLOR_GRAY2BGR)
-                            
-                            conf_vis = (confidence * 255).astype(np.uint8)
-                            conf_heatmap = cv2.applyColorMap(conf_vis, cv2.COLORMAP_JET)
-                            
-                            window['-UNC-'].update(data=make_preview_bytes(raw_vis))
-                            window['-CONF-'].update(data=make_preview_bytes(conf_heatmap))
-                        except Exception as e:
-                            _gui_status(f"Uncertainty Analysis failed: {e}")
-                    else:
-                        # Clear if disabled
-                        window['-UNC-'].update(data=b"")
-                        window['-CONF-'].update(data=b"")
+    
+                # Ensure project root on sys.path so Colorization can be imported
+                if project_root not in sys.path:
+                    sys.path.insert(0, project_root)
+    
+                # Set up a clean temporary folder for this single input image
+                temp_input_folder = os.path.join(project_root, "gui_temp_input")
+                if os.path.exists(temp_input_folder):
+                    shutil.rmtree(temp_input_folder)
+                os.makedirs(temp_input_folder, exist_ok=True)
+    
+                base_name = os.path.basename(filename)
+                shutil.copy(filename, os.path.join(temp_input_folder, base_name))
+    
+                output_folder = os.path.join(project_root, "output")
+    
+                def _gui_status(msg):
+                    window['-STATUS-'].update(msg)
+                    window.refresh()
+    
+                modify(
+                    image_filename=temp_input_folder,
+                    with_scratch=do_scratch,
+                    with_colorize=do_colorize,
+                    with_hr=do_hr,
+                    status_callback=_gui_status,
+                    saturation=values['-SATURATION-'],
+                )
+    
+                # Find and display the output image
+                base_name_no_ext = os.path.splitext(base_name)[0]
+                final_dir = os.path.join(output_folder, "final_output")
+    
+                candidates = [
+                    os.path.join(final_dir, f"{base_name_no_ext}.png"),
+                    os.path.join(final_dir, base_name),
+                ]
+                f_image = None
+                for cand in candidates:
+                    if os.path.exists(cand):
+                        f_image = cand
+                        break
+    
+                if f_image and os.path.exists(f_image):
+                    out_img = cv2.imread(f_image)
+                    if out_img is not None:
+                        window['-OUT-'].update(data=make_preview_bytes(out_img))
                         
-                    label = "restored + colorized" if do_colorize else "restored"
-                    window['-STATUS-'].update(
-                        f"Done! {label.capitalize()}: {os.path.basename(f_image)}")
+                        if do_uncertainty:
+                            try:
+                                _gui_status("Running Uncertainty Analysis...")
+                                from research.uncertainty import UncertaintyInferencer
+                                from research.calibration import UncertaintyCalibrator
+                                
+                                inferencer = UncertaintyInferencer("research_checkpoints/best_uncertainty_model.pth")
+                                calibrator = UncertaintyCalibrator.load("research_checkpoints/calibrator.pkl")
+                                
+                                orig_img = cv2.imread(filename)
+                                raw_unc = inferencer.infer(orig_img, out_img)
+                                calib_unc = calibrator.calibrate(raw_unc)
+                                confidence = np.clip(1.0 - (calib_unc / 255.0), 0.0, 1.0)
+                                
+                                raw_vis = ((raw_unc / max(1e-5, raw_unc.max())) * 255).astype(np.uint8)
+                                raw_vis = cv2.cvtColor(raw_vis, cv2.COLOR_GRAY2BGR)
+                                
+                                conf_vis = (confidence * 255).astype(np.uint8)
+                                conf_heatmap = cv2.applyColorMap(conf_vis, cv2.COLORMAP_JET)
+                                
+                                window['-UNC-'].update(data=make_preview_bytes(raw_vis))
+                                window['-CONF-'].update(data=make_preview_bytes(conf_heatmap))
+                            except Exception as e:
+                                _gui_status(f"Uncertainty Analysis failed: {e}")
+                        else:
+                            # Clear if disabled
+                            window['-UNC-'].update(data=b"")
+                            window['-CONF-'].update(data=b"")
+                            
+                        label = "restored + colorized" if do_colorize else "restored"
+                        window['-STATUS-'].update(
+                            f"Done! {label.capitalize()}: {os.path.basename(f_image)}")
+                    else:
+                        window['-STATUS-'].update(
+                            "Finished, but could not decode output image.")
                 else:
                     window['-STATUS-'].update(
-                        "Finished, but could not decode output image.")
-            else:
-                window['-STATUS-'].update(
-                    "Finished. Please check the output folder.")
-
-            if os.path.exists(temp_input_folder):
-                shutil.rmtree(temp_input_folder, ignore_errors=True)
-
-        except FileNotFoundError as fnf:
-            # Clean error (e.g. missing checkpoint)
-            window['-STATUS-'].update(f"Error: {fnf}")
-        except Exception as e:
-            window['-STATUS-'].update(f"Error: {e}")
-            traceback.print_exc()
-
-    elif event == '-IN FILE-':
-        filename = values['-IN FILE-']
-        if filename != prev_filename:
-            prev_filename = filename
-            try:
-                if filename and os.path.isfile(filename):
-                    image = cv2.imread(filename)
-                    if image is not None:
-                        window['-IN-'].update(data=make_preview_bytes(image))
-                        window['-STATUS-'].update(
-                            f"Loaded: {os.path.basename(filename)}")
+                        "Finished. Please check the output folder.")
+    
+                if os.path.exists(temp_input_folder):
+                    shutil.rmtree(temp_input_folder, ignore_errors=True)
+    
+            except FileNotFoundError as fnf:
+                # Clean error (e.g. missing checkpoint)
+                window['-STATUS-'].update(f"Error: {fnf}")
             except Exception as e:
-                window['-STATUS-'].update(f"Could not load image: {e}")
+                window['-STATUS-'].update(f"Error: {e}")
+                traceback.print_exc()
+    
+        elif event == '-IN FILE-':
+            filename = values['-IN FILE-']
+            if filename != prev_filename:
+                prev_filename = filename
+                try:
+                    if filename and os.path.isfile(filename):
+                        image = cv2.imread(filename)
+                        if image is not None:
+                            window['-IN-'].update(data=make_preview_bytes(image))
+                            window['-STATUS-'].update(
+                                f"Loaded: {os.path.basename(filename)}")
+                except Exception as e:
+                    window['-STATUS-'].update(f"Could not load image: {e}")
+    
+    window.close()
 
-window.close()
+if __name__ == '__main__':
+    main()

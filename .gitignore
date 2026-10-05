@@ -22,3 +22,5 @@ research_restored_output/
 research_test_input/
 research_test_output/
 ablation_temp_input/
+web_ui/node_modules/
+web_ui/.next/
