@@ -97,7 +97,7 @@ async def restore_photo(
         # Result dictionary
         results = {
             "original": encode_image(file_path),
-            "restored": encode_image(out_img_path),
+            "restored": encode_image(out_img_path) if scratchRemoval else None,
             "colorized": None,
             "uncertainty": None,
             "uncertainty_reason": None,
@@ -107,18 +107,19 @@ async def restore_photo(
         
         if colorization:
             # The final image is colorized if colorization was selected
-            results["colorized"] = results["restored"]
+            results["colorized"] = encode_image(out_img_path)
             
-            # Create a grayscale version for the 'restored' output
-            out_img_cv = cv2.imread(out_img_path)
-            if out_img_cv is not None:
-                gray_img = cv2.cvtColor(out_img_cv, cv2.COLOR_BGR2GRAY)
-                gray_bgr = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
-                _, buffer = cv2.imencode('.png', gray_bgr)
-                results["restored"] = f"data:image/png;base64,{base64.b64encode(buffer).decode('utf-8')}"
+            # Create a grayscale version for the 'restored' output ONLY if scratch removal was also selected
+            if scratchRemoval:
+                out_img_cv = cv2.imread(out_img_path)
+                if out_img_cv is not None:
+                    gray_img = cv2.cvtColor(out_img_cv, cv2.COLOR_BGR2GRAY)
+                    gray_bgr = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
+                    _, buffer = cv2.imencode('.png', gray_bgr)
+                    results["restored"] = f"data:image/png;base64,{base64.b64encode(buffer).decode('utf-8')}"
             
         # 5. Handle Uncertainty Map
-        if uncertainty:
+        if uncertainty and scratchRemoval:
             try:
                 from research.uncertainty import UncertaintyInferencer
                 
@@ -146,10 +147,10 @@ async def restore_photo(
                 # ── Raw Uncertainty Map (INFERNO: black→purple→red→yellow = low→high error)
                 raw_vis = cv2.applyColorMap(raw_norm, cv2.COLORMAP_INFERNO)
                 
-                # ── Calibrated Confidence Map (JET: blue→red = high→low conf)
-                # Invert so low-error pixels → 255 → blue, high-error → 0 → red
-                conf_norm = (255 - raw_norm).astype(np.uint8)
-                conf_heatmap = cv2.applyColorMap(conf_norm, cv2.COLORMAP_JET)
+                # ── Calibrated Confidence Map (JET: blue=0→red=255)
+                # low-error pixels (0) → JET(0) = blue
+                # high-error pixels (255) → JET(255) = red
+                conf_heatmap = cv2.applyColorMap(raw_norm, cv2.COLORMAP_JET)
                 
                 results["uncertainty"] = encode_bytes(make_preview_bytes(raw_vis))
                 results["confidence"] = encode_bytes(make_preview_bytes(conf_heatmap))

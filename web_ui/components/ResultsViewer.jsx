@@ -52,12 +52,12 @@ export default function ResultsViewer({ results }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
       {/* ─ Before / After Comparison ─ */}
-      {results.restored && (
+      {(results.restored || results.colorized) && (
         <div className="comparison-wrapper">
           <div className="comparison-header">
             <span className="comparison-title">◈ Before & After Comparison</span>
             <span style={{ fontSize: '0.7rem', color: 'var(--gold-dim)', letterSpacing: '1px', fontFamily: 'var(--font-display)' }}>
-              RESTORATION ANALYSIS
+              {results.restored ? 'RESTORATION ANALYSIS' : 'COLORIZATION ANALYSIS'}
             </span>
           </div>
           <div className="comparison-body">
@@ -66,8 +66,10 @@ export default function ResultsViewer({ results }) {
               <img src={results.original} alt="Original damaged photograph" />
             </div>
             <div className="comparison-panel">
-              <span className="comparison-label right">Restored</span>
-              <img src={results.colorized || results.restored} alt="Restored photograph" />
+              <span className="comparison-label right">
+                {results.restored ? 'Restored' : 'Colorized'}
+              </span>
+              <img src={results.colorized || results.restored} alt="Enhanced photograph" />
             </div>
             <div className="comparison-divider" />
           </div>
@@ -83,13 +85,15 @@ export default function ResultsViewer({ results }) {
         </div>
 
         <div className="results-grid">
-          <ResultCard
-            badge="Restored"
-            badgeClass="badge-restored"
-            title="Structural Restoration"
-            description="Overall quality improvement via global photo restoration network."
-            imgSrc={results.restored}
-          />
+          {results.restored && (
+            <ResultCard
+              badge="Restored"
+              badgeClass="badge-restored"
+              title="Structural Restoration"
+              description="Overall quality improvement via global photo restoration network."
+              imgSrc={results.restored}
+            />
+          )}
 
           {results.colorized && (
             <ResultCard
