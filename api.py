@@ -100,39 +100,142 @@ async def restore_photo(
             "restored": encode_image(out_img_path),
             "colorized": None,
             "uncertainty": None,
-            "confidence": None
+            "uncertainty_reason": None,
+            "confidence": None,
+            "confidence_reason": None
         }
         
         if colorization:
             # The final image is colorized if colorization was selected
             results["colorized"] = results["restored"]
             
+            # Create a grayscale version for the 'restored' output
+            out_img_cv = cv2.imread(out_img_path)
+            if out_img_cv is not None:
+                gray_img = cv2.cvtColor(out_img_cv, cv2.COLOR_BGR2GRAY)
+                gray_bgr = cv2.cvtColor(gray_img, cv2.COLOR_GRAY2BGR)
+                _, buffer = cv2.imencode('.png', gray_bgr)
+                results["restored"] = f"data:image/png;base64,{base64.b64encode(buffer).decode('utf-8')}"
+            
         # 5. Handle Uncertainty Map
         if uncertainty:
             try:
                 from research.uncertainty import UncertaintyInferencer
-                from research.calibration import UncertaintyCalibrator
                 
                 inferencer = UncertaintyInferencer("research_checkpoints/best_uncertainty_model.pth")
-                calibrator = UncertaintyCalibrator.load("research_checkpoints/calibrator.pkl")
                 
                 orig_img = cv2.imread(file_path)
                 out_img = cv2.imread(out_img_path)
                 
                 raw_unc = inferencer.infer(orig_img, out_img)
-                calib_unc = calibrator.calibrate(raw_unc)
-                confidence = np.clip(1.0 - (calib_unc / 255.0), 0.0, 1.0)
                 
-                raw_vis = ((raw_unc / max(1e-5, raw_unc.max())) * 255).astype(np.uint8)
-                raw_vis = cv2.cvtColor(raw_vis, cv2.COLOR_GRAY2BGR)
+                # ── Absolute-scale normalization ─────────────────────────────
+                # Use the 99th-percentile pixel value as the ceiling so that:
+                #   • Clean images (p99 ≈ 90–135) → most pixels stay in the
+                #     lower half of the scale → appear dark/cool (low error).
+                #   • Truly uncertain regions (top 1%) saturate to max.
+                # Do NOT use per-image min-max or CLAHE, which always stretch
+                # the full range and make every image look maximally uncertain.
+                p99 = float(np.percentile(raw_unc, 99))
+                # Guard: enforce a minimum ceiling of 128 so a near-zero image
+                # doesn't get stretched to look uncertain.
+                ceil = max(p99, 128.0)
                 
-                conf_vis = (confidence * 255).astype(np.uint8)
-                conf_heatmap = cv2.applyColorMap(conf_vis, cv2.COLORMAP_JET)
+                raw_norm = np.clip(raw_unc / ceil * 255.0, 0, 255).astype(np.uint8)
+                
+                # ── Raw Uncertainty Map (INFERNO: black→purple→red→yellow = low→high error)
+                raw_vis = cv2.applyColorMap(raw_norm, cv2.COLORMAP_INFERNO)
+                
+                # ── Calibrated Confidence Map (JET: blue→red = high→low conf)
+                # Invert so low-error pixels → 255 → blue, high-error → 0 → red
+                conf_norm = (255 - raw_norm).astype(np.uint8)
+                conf_heatmap = cv2.applyColorMap(conf_norm, cv2.COLORMAP_JET)
                 
                 results["uncertainty"] = encode_bytes(make_preview_bytes(raw_vis))
                 results["confidence"] = encode_bytes(make_preview_bytes(conf_heatmap))
+                
+                # ── Uncertainty Reason Analysis ───────────────────────────────
+                # Identify WHERE the high-uncertainty pixels are and WHY.
+                try:
+                    h, w = raw_norm.shape
+                    # Resize out_img to exactly match raw_norm dimensions to avoid shape mismatches
+                    out_gray = cv2.cvtColor(cv2.resize(out_img, (w, h)), cv2.COLOR_BGR2GRAY)
+
+                    # High-uncertainty mask: top 20% of pixel values
+                    high_thresh = int(np.percentile(raw_norm, 80))
+                    high_mask = raw_norm > high_thresh
+                    high_count = high_mask.sum()
+                    
+                    reasons = []
+                    
+                    if high_count > 0:
+                        # 1. Structural change / Scratch removal overlap
+                        # Calculate diff between original and restored to see where the model made changes
+                        orig_gray = cv2.cvtColor(cv2.resize(orig_img, (w, h)), cv2.COLOR_BGR2GRAY)
+                        diff = cv2.absdiff(orig_gray, out_gray)
+                        diff_mask = diff > np.percentile(diff, 85)
+                        change_overlap = np.logical_and(high_mask, diff_mask).sum() / high_count
+                        if change_overlap > 0.35:
+                            reasons.append("the exact locations where heavy scratches, stains, or physical damage were structurally removed and repainted")
+
+                        # 2. Face overlap
+                        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                        faces = face_cascade.detectMultiScale(out_gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+                        face_overlap = False
+                        for (fx, fy, fw, fh) in faces:
+                            face_mask = np.zeros_like(high_mask, dtype=bool)
+                            face_mask[fy:fy+fh, fx:fx+fw] = True
+                            if np.logical_and(high_mask, face_mask).sum() / (fw * fh) > 0.15:
+                                face_overlap = True
+                                break
+                        if face_overlap:
+                            reasons.append("the facial region, where the Face Enhancement model had to heavily hallucinate complex eye, nose, and mouth details")
+                        
+                        # 3. Fine edges
+                        edges = cv2.Canny(out_gray, 40, 120)
+                        edge_dil = cv2.dilate(edges, np.ones((5, 5), np.uint8))
+                        if not face_overlap and (np.logical_and(high_mask, edge_dil > 0).sum() / high_count) > 0.35:
+                            reasons.append("fine edges and sharp structural boundaries in the image")
+                        
+                        # 4. Spatial Location (if not dominated by faces/scratches)
+                        mean_x = np.where(high_mask)[1].mean() / w
+                        mean_y = np.where(high_mask)[0].mean() / h
+                        locs = []
+                        if mean_y < 0.33: locs.append("top")
+                        elif mean_y > 0.66: locs.append("bottom")
+                        if mean_x < 0.33: locs.append("left")
+                        elif mean_x > 0.66: locs.append("right")
+                        
+                        if len(reasons) == 0:
+                            if locs:
+                                reasons.append(f"the {'-'.join(locs)} portion of the image, likely due to complex background textures")
+                            else:
+                                reasons.append("complex central textures that were difficult to reconstruct")
+
+                        # Format output
+                        overall_pct = high_mask.mean() * 100
+                        if overall_pct < 12:
+                            preamble = "Overall reconstruction confidence is high for this image. The residual uncertainty is specifically localized to "
+                        elif overall_pct < 30:
+                            preamble = "The model shows moderate uncertainty for this specific photo, concentrated strongly around "
+                        else:
+                            preamble = "Significant uncertainty is distributed across this photo, particularly tracking "
+                        
+                        reason_text = preamble + " and ".join(reasons) + "."
+                        conf_reason = "The model is less confident (red regions) exactly around " + " and ".join(reasons) + " because it had to 'guess' the missing historical data there. It is highly confident (blue) in the untouched flat regions."
+                    else:
+                        reason_text = "No significant uncertainty detected. The model reconstructed this exact image with high confidence throughout."
+                        conf_reason = "The model is highly confident (blue regions) across this entire image because the underlying textures and structures required minimal guessing."
+                    
+                    results["uncertainty_reason"] = reason_text
+                    results["confidence_reason"] = conf_reason
+                except Exception as re:
+                    print(f"Uncertainty reason analysis failed: {re}")
+                
             except Exception as e:
                 print(f"Uncertainty generation failed: {e}")
+
+
                 
         # Clean up
         if os.path.exists(TEMP_INPUT_FOLDER):

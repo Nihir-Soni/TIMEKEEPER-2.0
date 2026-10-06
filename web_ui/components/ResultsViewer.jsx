@@ -67,7 +67,7 @@ export default function ResultsViewer({ results }) {
             </div>
             <div className="comparison-panel">
               <span className="comparison-label right">Restored</span>
-              <img src={results.restored} alt="Restored photograph" />
+              <img src={results.colorized || results.restored} alt="Restored photograph" />
             </div>
             <div className="comparison-divider" />
           </div>
@@ -106,7 +106,7 @@ export default function ResultsViewer({ results }) {
               badge="Uncertainty"
               badgeClass="badge-uncertainty"
               title="Raw Uncertainty Map"
-              description="High-error regions detected by the trained uncertainty estimator. Brighter = more uncertain."
+              description="Predicted reconstruction error per region. White/bright = higher uncertainty; dark/black = confident reconstruction."
               imgSrc={results.uncertainty}
             />
           )}
@@ -116,11 +116,73 @@ export default function ResultsViewer({ results }) {
               badge="Confidence"
               badgeClass="badge-confidence"
               title="Calibrated Confidence"
-              description="Isotonic-calibrated confidence. Cool/blue = high confidence, warm/red = low confidence."
+              description="Per-region model confidence. Blue = high confidence (low error); red = low confidence (high error)."
               imgSrc={results.confidence}
             />
           )}
         </div>
+
+        {/* ─ Uncertainty & Confidence Insight ─ */}
+        {(results.uncertainty_reason || results.confidence_reason) && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1rem',
+            marginTop: '1rem'
+          }}>
+            {results.uncertainty_reason && (
+              <div style={{
+                background: 'rgba(255,200,80,0.06)',
+                border: '1px solid rgba(255,200,80,0.2)',
+                borderRadius: '8px',
+                padding: '0.9rem 1.1rem',
+                display: 'flex',
+                gap: '0.65rem',
+                alignItems: 'flex-start',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c8a84b" strokeWidth="2"
+                  style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div>
+                  <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', letterSpacing: '1.5px', color: '#c8a84b', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>
+                    Why this uncertainty?
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+                    {results.uncertainty_reason}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {results.confidence_reason && (
+              <div style={{
+                background: 'rgba(80,180,255,0.06)',
+                border: '1px solid rgba(80,180,255,0.2)',
+                borderRadius: '8px',
+                padding: '0.9rem 1.1rem',
+                display: 'flex',
+                gap: '0.65rem',
+                alignItems: 'flex-start',
+              }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#50b4ff" strokeWidth="2"
+                  style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div>
+                  <p style={{ margin: '0 0 0.2rem', fontSize: '0.7rem', letterSpacing: '1.5px', color: '#50b4ff', fontFamily: 'var(--font-display)', textTransform: 'uppercase' }}>
+                    Why this confidence?
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.55' }}>
+                    {results.confidence_reason}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ─ Disclaimer ─ */}
