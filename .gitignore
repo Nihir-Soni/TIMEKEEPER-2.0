@@ -1,26 +1,48 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
 *~
+
+# Virtual environments
 venv/
 .venv/
 env/
+
+# Output / temp
 output/
 gui_temp_input/
+ablation_temp_input/
+
+# Model checkpoints
 Colorization/checkpoints/
 Face_Enhancement/checkpoints/
 Face_Detection/checkpoints/
 Global/checkpoints/
-debug*.png
+checkpoints/
 *.pth
 *.pt
 *.onnx
-.DS_Store
+
+# Debug files
+debug_*.py
+debug_*.png
 
 # Research artifacts
+research/
 research_checkpoints/
 research_restored_output/
 research_test_input/
 research_test_output/
-ablation_temp_input/
+
+# Test outputs
+test_output/
+test_scratch_output/
+
+# Web UI
 web_ui/node_modules/
 web_ui/.next/
+
+# OS
+.DS_Store
+Thumbs.db
