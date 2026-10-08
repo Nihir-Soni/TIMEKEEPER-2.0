@@ -28,8 +28,7 @@ checkpoints/
 debug_*.py
 debug_*.png
 
-# Research artifacts
-research/
+# Research — only exclude output/data/checkpoints, NOT source code
 research_checkpoints/
 research_restored_output/
 research_test_input/

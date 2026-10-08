@@ -119,7 +119,7 @@ async def restore_photo(
                     results["restored"] = f"data:image/png;base64,{base64.b64encode(buffer).decode('utf-8')}"
             
         # 5. Handle Uncertainty Map
-        if uncertainty and scratchRemoval:
+        if uncertainty:
             try:
                 from research.uncertainty import UncertaintyInferencer
                 
