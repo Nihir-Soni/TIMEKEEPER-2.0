@@ -43,7 +43,7 @@
        ▼
 ┌──────────────────────────┐
 │  2. SIGGRAPH 2017        │
-│  Colorization Model       │
+│  Colorization Model      │
 │  (Realistic grayscale -> │
 │   color restoration)     │
 └──────┬───────────────────┘
@@ -61,6 +61,24 @@
 │  (Fully Restored Photo)  │
 └──────────────────────────┘
 ```
+
+---
+
+## 🖼️ Live Web Interface Demo
+
+Here's how the complete TIMEKEEPER 2.0 web interface works in action:
+
+<p align="center">
+  <img src="https://github.com/Nihir-Soni/TIMEKEEPER-2.0/assets/208146181/timekeeper-interface.jpg" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
+</p>
+
+**Web Interface Features:**
+- 📷 **Photograph Input** - Upload historical photos for restoration
+- 🔄 **Before & After Comparison** - Side-by-side visualization of restoration process
+- 🎛️ **Restoration Options** - Toggle scratch removal, colorization, and high-resolution mode
+- 📊 **Restoration Analysis** - View all intermediate stages (Structural Restoration, AI Colorization, Uncertainty Maps, Confidence Scores)
+- 🎨 **Color Saturation Control** - Adjust color intensity from desaturated to vivid
+- ✅ **Multiple Output Formats** - Restored image, colorized version, uncertainty maps, and confidence calibration
 
 ---
 
