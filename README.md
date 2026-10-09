@@ -89,7 +89,7 @@ Below are sample input and output images already included in the repository. The
 ### Example Gallery
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/old/b.png" width="300" alt="Input old photo B" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/old/ab.png" width="300" alt="Input old photo B" />
   <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_output/final_output/a.png" width="300" alt="Restored output A" />
 </p>
 
