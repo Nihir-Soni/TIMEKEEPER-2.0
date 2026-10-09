@@ -10,12 +10,12 @@
 
 ## 📸 Project Overview
 
-**TIMEKEEPER 2.0** is a comprehensive solution for restoring and enhancing old, damaged photographs. Using cutting-edge deep learning techniques, it combines multiple AI models to automatically detect and remove scratches, enhance faces, colorize black-and-white images, and restore overall photo quality.
+**TIMEKEEPER 2.0** is a comprehensive solution for restoring and enhancing old, damaged photographs. Using deep learning, it combines multiple image restoration stages to automatically repair scratches, improve quality, and apply realistic color to historical grayscale images.
 
 ### Key Features
 
 - ✨ **Automatic Scratch Detection & Removal** - Detect and intelligently remove physical damage
-- 🎨 **AI-Powered Colorization** - Realistic color restoration using DDColor (ICCV 2023)
+- 🎨 **AI-Powered Colorization** - Realistic color restoration using the SIGGRAPH 2017 colorization model
 - 👤 **Progressive Face Enhancement** - High-quality facial region refinement
 - 🖼️ **Global Image Restoration** - Comprehensive restoration for structured and unstructured degradation
 - 🔍 **Uncertainty Estimation** - Confidence maps for restoration reliability
@@ -42,9 +42,10 @@
        │
        ▼
 ┌──────────────────────────┐
-│  2. DDColor Colorization │
-│  (Optional: Add Vivid    │
-│   Realistic Colors)      │
+│  2. SIGGRAPH 2017        │
+│  Colorization Model       │
+│  (Realistic grayscale -> │
+│   color restoration)     │
 └──────┬───────────────────┘
        │
        ▼
@@ -65,13 +66,28 @@
 
 ## 🖼️ Results Preview
 
-Below you can see the restoration pipeline in action with before and after comparisons, along with various output formats:
+Below are sample input and output images already included in the repository. The colorization stage is based on the SIGGRAPH 2017 model, not DDColor.
 
-![TIMEKEEPER UI Screenshot](https://github.com/Nihir-Soni/TIMEKEEPER-2.0/raw/main/imgs/ui_screenshot.png)
+### Example Gallery
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/old/b.png" width="300" alt="Input old photo B" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_output/final_output/a.png" width="300" alt="Restored output A" />
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/old/c.png" width="300" alt="Input old photo C" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_scratch_output/final_output/a.png" width="300" alt="Scratch-restored output A" />
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/old_w_scratch/a.png" width="300" alt="Damaged input image" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_scratch_output/final_output/a.png" width="300" alt="Damaged output restored" />
+</p>
 
 **Example Outputs:**
 - **Structural Restoration** - Removes scratches and major damage
-- **AI Colorization** - Adds realistic, vibrant colors to B&W photos
+- **SIGGRAPH 2017 Colorization** - Adds realistic, vibrant colors to grayscale archival images
 - **Raw Uncertainty Map** - Confidence visualization of restoration
 - **Calibrated Confidence** - Reliability metrics for each region
 
@@ -203,7 +219,7 @@ python test.py --test_input ./cropped_faces \
 
 ### 5️⃣ Colorization
 
-**Standalone colorization:**
+**Standalone colorization using the SIGGRAPH 2017 pipeline:**
 ```bash
 python Colorization/demo_release.py -i input_image.jpg -o output_image.jpg
 ```
@@ -239,7 +255,7 @@ output/
 ### Restoration Options
 - `--with_scratch` - Enable scratch detection and removal
 - `--HR` - High-resolution mode (slower but better quality)
-- `--colorize` - Enable DDColor colorization
+- `--colorize` - Enable SIGGRAPH 2017 colorization
 - `--enhancement_ratio 1.0` - Face enhancement intensity (0.0-2.0)
 
 ---
@@ -292,10 +308,10 @@ ansible-playbook ansible.yaml
    - Face-specific quality refinement
    - Detail preservation
 
-4. **Colorization Module** (DDColor)
-   - ICCV 2023 state-of-the-art
-   - Realistic color restoration
-   - User-guided optional mode
+4. **Colorization Module** (SIGGRAPH 2017)
+   - Real-time user-guided image colorization with learned deep priors
+   - Produces natural and realistic restoration for grayscale archival pictures
+   - Compatible with the repository's `Colorization` implementation
 
 ### Model Specifications
 
@@ -368,11 +384,14 @@ If you use TIMEKEEPER 2.0 in your research, please cite:
   publisher={IEEE}
 }
 
-@inproceedings{zhang2023ddcolor,
-  title={DDColor: Towards Photo-Realistic Image Colorization via Dual Decoders},
-  author={Zhang, Xiaozhong and Wang, Xiuping and others},
-  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
-  year={2023}
+@article{zhang2017real,
+  title={Real-Time User-Guided Image Colorization with Learned Deep Priors},
+  author={Zhang, Richard and Zhu, Jun-Yan and Isola, Phillip and Geng, Xinyang and Lin, Angela S and Yu, Tianhe and Efros, Alexei A},
+  journal={ACM Transactions on Graphics (TOG)},
+  volume={36},
+  number={4},
+  year={2017},
+  publisher={ACM}
 }
 ```
 
@@ -412,7 +431,7 @@ This project is licensed under the **MIT License** - see [LICENSE](./LICENSE) fi
 - **[CVPR 2020 Paper](https://arxiv.org/abs/2004.09484)**
 - **[TPAMI 2022 Paper](https://arxiv.org/pdf/2009.07047v1.pdf)**
 - **[Original Repository](https://github.com/microsoft/Bringing-Old-Photos-Back-to-Life)**
-- **[DDColor Repository](https://github.com/piddnad/DDColor)**
+- **[SIGGRAPH 2017 Colorization Repository](https://github.com/richzhang/colorization)**
 
 ---
 
@@ -427,7 +446,7 @@ This project is licensed under the **MIT License** - see [LICENSE](./LICENSE) fi
 ## 🙏 Acknowledgments
 
 - Original research by [Ziyu Wan](http://raywzy.com/) et al., Microsoft Research Asia
-- DDColor implementation by [Xiaozhong Zhang](https://github.com/piddnad/DDColor)
+- SIGGRAPH 2017 colorization work by [Richard Zhang](https://richzhang.github.io/) and collaborators
 - Community contributions and testing
 
 ---
