@@ -1,4 +1,4 @@
-# 🕐 TIMEKEEPER 2.0 - Historical Photo Restoration & Enhancement
+# 🕐 TIMEKEEPER - Historical Photo Restoration & Enhancement
 
 > Bringing Old Photos Back to Life with Advanced AI-Powered Image Restoration
 
@@ -10,7 +10,7 @@
 
 ## 📸 Project Overview
 
-**TIMEKEEPER 2.0** is a comprehensive solution for restoring and enhancing old, damaged photographs. Using deep learning, it combines multiple image restoration stages to automatically repair scratches, improve quality, and apply realistic color to historical grayscale images.
+**TIMEKEEPER** is a comprehensive solution for restoring and enhancing old, damaged photographs. Using deep learning, it combines multiple image restoration stages to automatically repair scratches, improve facial details, and restore color and quality in historical images.
 
 ### Key Features
 
@@ -66,7 +66,7 @@
 
 ## 🖼️ Live Web Interface Demo
 
-Here's how the complete TIMEKEEPER 2.0 web interface looks and works in practice:
+Here's how the complete TIMEKEEPER web interface looks and works in practice:
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/ui.png" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
@@ -380,7 +380,7 @@ python train_mapping.py --training_dataset mapping --dataroot ./data
 
 ## 📚 References & Citations
 
-If you use TIMEKEEPER 2.0 in your research, please cite:
+If you use TIMEKEEPER in your research, please cite:
 
 ```bibtex
 @inproceedings{wan2020bringing,
