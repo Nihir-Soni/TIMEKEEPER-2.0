@@ -69,7 +69,7 @@
 Here's how the complete TIMEKEEPER 2.0 web interface looks and works in practice:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/imgs/gui.PNG" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/test_images/ui.png" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
 </p>
 
 **Web Interface Features:**
