@@ -43,7 +43,7 @@
        ▼
 ┌──────────────────────────┐
 │  2. SIGGRAPH 2017        │
-│  Colorization Model      │
+│  Colorization Model       │
 │  (Realistic grayscale -> │
 │   color restoration)     │
 └──────┬───────────────────┘
@@ -66,10 +66,10 @@
 
 ## 🖼️ Live Web Interface Demo
 
-Here's how the complete TIMEKEEPER 2.0 web interface works in action:
+Here's how the complete TIMEKEEPER 2.0 web interface looks and works in practice:
 
 <p align="center">
-  <img src="https://github.com/Nihir-Soni/TIMEKEEPER-2.0/assets/208146181/timekeeper-interface.jpg" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
+  <img src="https://raw.githubusercontent.com/Nihir-Soni/TIMEKEEPER-2.0/main/imgs/gui.PNG" alt="TIMEKEEPER Web Interface - Before and After Comparison with Restoration Analysis" width="100%" />
 </p>
 
 **Web Interface Features:**
